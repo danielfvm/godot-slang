@@ -52,5 +52,11 @@
 				Get the dependency file paths of this module.
 			</description>
 		</method>
+		<method name="get_declared_structs" qualifiers="const">
+			<return type="Dictionary" />
+			<description>
+				Returns all struct declarations in this module, including structs that are not used as shader parameters. Each entry is keyed by the struct name and contains [code]name[/code], [code]user_attributes[/code], and [code]fields[/code]. Every field contains its [code]name[/code], [code]type_name[/code], and [code]user_attributes[/code]. This declaration reflection has no GPU layout or binding information.
+			</description>
+		</method>
 	</methods>
 </class>

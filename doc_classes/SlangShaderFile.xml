@@ -34,6 +34,12 @@
 				Sets the SPIR-V [param bytecode] that will be compiled for the specified program (at [param program_index]).
 			</description>
 		</method>
+		<method name="to_json" qualifiers="const">
+			<return type="Variant" />
+			<description>
+				Returns the Slang program-layout reflection emitted when this shader was compiled. The returned value is a dictionary parsed from Slang's JSON reflection output.
+			</description>
+		</method>
 	</methods>
 	<members>
 		<member name="base_error" type="String" setter="set_base_error" getter="get_base_error">
@@ -44,6 +50,9 @@
 		</member>
 		<member name="parameters" type="StructTypeLayoutShape" setter="set_parameters" getter="get_parameters">
 			Get the reflection information of the global parameters for this shader. You typically won't need to access this, but it is used under the hood by [SlangShaderTask] to bind data to the correct descriptor slots.
+		</member>
+		<member name="reflection" type="Dictionary" setter="set_reflection" getter="get_reflection">
+			The complete Slang program-layout reflection captured when this shader was compiled. This includes reflected types that are not represented by [member parameters].
 		</member>
 	</members>
 	<constants>

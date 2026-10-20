@@ -11,11 +11,50 @@
 using namespace gdslang;
 using namespace godot;
 
+namespace {
+
+void collect_declared_structs(slang::DeclReflection* declaration, const SlangReflectionContext& reflection_context, Dictionary& structs) {
+	ERR_FAIL_NULL(declaration);
+	for (unsigned int child_index = 0; child_index < declaration->getChildrenCount(); ++child_index) {
+		slang::DeclReflection* child = declaration->getChild(child_index);
+		if (child == nullptr) {
+			continue;
+		}
+		if (child->getKind() == slang::DeclReflection::Kind::Struct) {
+			slang::TypeReflection* type = child->getType();
+			if (type != nullptr) {
+				Dictionary fields{};
+				for (unsigned int field_index = 0; field_index < type->getFieldCount(); ++field_index) {
+					slang::VariableReflection* field = type->getFieldByIndex(field_index);
+					if (field == nullptr) {
+						continue;
+					}
+					Dictionary field_info{};
+					field_info["name"] = field->getName();
+					field_info["user_attributes"] = reflection_context.get_attributes(field);
+					if (slang::TypeReflection* field_type = field->getType()) {
+						field_info["type_name"] = field_type->getName();
+					}
+					fields[field->getName()] = field_info;
+				}
+
+				Dictionary struct_info{};
+				struct_info["name"] = type->getName();
+				struct_info["user_attributes"] = reflection_context.get_attributes(type);
+				struct_info["fields"] = fields;
+				structs[type->getName()] = struct_info;
+			}
+		}
+		collect_declared_structs(child, reflection_context, structs);
+	}
+}
+
+} // namespace
+
 void SlangModule::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("compile_shader", "additional_entry_points"), &SlangModule::compile_shader, DEFVAL(PackedStringArray{}));
-	BIND_METHOD(SlangModule, get_params_shape)
-	BIND_METHOD(SlangModule, to_json)
 	BIND_METHOD(SlangModule, get_dependency_files)
+	BIND_METHOD(SlangModule, get_declared_structs)
 	BIND_METHOD(SlangModule, get_defined_entry_point_count)
 	BIND_METHOD(SlangModule, get_defined_entry_point, "index")
 	BIND_METHOD(SlangModule, find_entry_point, "entry_point_name")
@@ -47,6 +86,16 @@ PackedStringArray SlangModule::get_dependency_files() const {
 		dependency_files.push_back(localized_path);
 	}
 	return dependency_files;
+}
+
+Dictionary SlangModule::get_declared_structs() const {
+	ERR_FAIL_NULL_V(module, {});
+	// Declarations need not be shader inputs, but the module layout provides the
+	// attribute-type lookup used to recover named attribute arguments.
+	const SlangReflectionContext reflection_context(module->getLayout());
+	Dictionary structs{};
+	collect_declared_structs(module->getModuleReflection(), reflection_context, structs);
+	return structs;
 }
 
 int64_t SlangModule::_raster_stages() {
@@ -158,6 +207,7 @@ Ref<SlangShaderFile> SlangModule::compile_shader(const PackedStringArray& additi
 	if (diagnostic.is_empty()) {
 		const Ref<StructTypeLayoutShape> global_params = get_params_shape();
 		slang_shader->set_parameters(global_params);
+		slang_shader->set_reflection(to_json());
 		TypedArray<Ref<SlangShaderProgram>> programs;
 		if (const Error compile_error = _compile_programs(programs, global_params.ptr(), additional_entry_points)) {
 			slang_shader->set_base_error(UtilityFunctions::error_string(compile_error));

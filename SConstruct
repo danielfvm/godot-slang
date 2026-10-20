@@ -56,8 +56,10 @@ projectdir = "demo"
 
 platformdir = f"{libdir}/{env['platform']}" if env["arch"] == "universal" else f"{libdir}/{env['platform']}-{env["arch"]}"
 
-# TODO: Make this a separate flag
-slang_import_enabled = env["target"] == "editor"
+# The Slang compiler backs both the editor importer and the public runtime
+# `SlangSession` API.  Build it into export templates as well, while the
+# editor-only plugin registration remains guarded by `TOOLS_ENABLED`.
+slang_import_enabled = env["target"] in ["editor", "template_debug", "template_release"]
 
 if slang_import_enabled:
     env.Append(
@@ -77,6 +79,16 @@ if slang_import_enabled:
     actions += slang_build
 
     editor_sources = Glob("src/editor/*.cpp")
+    if env["target"] != "editor":
+        # These implementations are only used by the Godot editor.  The
+        # remaining sources in this directory provide the runtime compiler API.
+        editor_sources = [
+            src for src in editor_sources
+            if os.path.basename(str(src)) not in [
+                "slang_shader_editor_plugin.cpp",
+                "slang_shader_importer.cpp",
+            ]
+        ]
     for src in editor_sources + Glob("src/editor/*.h"):
         env.Depends(src, slang_build)
     sources += editor_sources

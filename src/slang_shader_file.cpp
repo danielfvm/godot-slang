@@ -11,9 +11,11 @@ void SlangShaderFile::_bind_methods() {
 	BIND_GET_SET_RESOURCE_ARRAY(SlangShaderFile, programs, SlangShaderProgram)
 	BIND_GET_SET(SlangShaderFile, base_error, Variant::STRING)
 	BIND_GET_SET_RESOURCE(SlangShaderFile, parameters, StructTypeLayoutShape);
+	BIND_GET_SET(SlangShaderFile, reflection, Variant::DICTIONARY)
 	ClassDB::bind_method(D_METHOD("set_bytecode", "bytecode", "version", "program_index"), &SlangShaderFile::set_bytecode, DEFVAL(StringName("")), DEFVAL(0));
 	ClassDB::bind_method(D_METHOD("get_spirv", "version", "program_index"), &SlangShaderFile::get_spirv, DEFVAL(StringName("")), DEFVAL(0));
 	ClassDB::bind_method(D_METHOD("get_version_list", "program_index"), &SlangShaderFile::get_version_list, DEFVAL(0));
+	BIND_METHOD(SlangShaderFile, to_json)
 }
 
 void SlangShaderFile::set_bytecode(const Ref<RDShaderSPIRV>& p_bytecode, [[maybe_unused]] const StringName& p_version, const int64_t program_index) {
@@ -36,6 +38,10 @@ TypedArray<StringName> SlangShaderFile::get_version_list(const int64_t program_i
 	return version_list;
 }
 
+Variant SlangShaderFile::to_json() const {
+	return reflection;
+}
+
 String SlangShaderFile::get_godot_version_string() {
 	const Dictionary version_info = Engine::get_singleton()->get_version_info();
 	static const auto major_version_string = String::num_int64(version_info.get("major", 0));
@@ -47,3 +53,4 @@ String SlangShaderFile::get_godot_version_string() {
 GET_SET_PROPERTY_IMPL(SlangShaderFile, TypedArray<SlangShaderProgram>, programs)
 GET_SET_PROPERTY_IMPL(SlangShaderFile, String, base_error)
 GET_SET_PROPERTY_IMPL(SlangShaderFile, Ref<StructTypeLayoutShape>, parameters);
+GET_SET_PROPERTY_IMPL(SlangShaderFile, Variant, reflection)

@@ -12,6 +12,8 @@ void SlangComponentType::_bind_methods() {
 	BIND_GET_SET(SlangComponentType, diagnostic, Variant::STRING)
 	BIND_METHOD(SlangComponentType, link)
 	ClassDB::bind_method(D_METHOD("compile_entry_point","entry_point_index", "target_index"), &SlangComponentType::compile_entry_point, DEFVAL(0), DEFVAL(0));
+	BIND_METHOD(SlangComponentType, get_params_shape)
+	BIND_METHOD(SlangComponentType, to_json)
 }
 
 slang::IComponentType* SlangComponentType::get_component_type() const {
@@ -241,4 +243,3 @@ Ref<SlangComponentType> SlangComponentType::create(slang::IComponentType* compon
 
 GET_SET_PROPERTY_IMPL(SlangComponentType, String, diagnostic)
 GET_SET_PROPERTY_IMPL(SlangComponentType, Ref<gdslang::SlangSession>, session)
-

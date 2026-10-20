@@ -25,6 +25,8 @@ public:
 	godot::String get_file_path() const;
 
 	godot::PackedStringArray get_dependency_files() const;
+	// Reflection for source declarations, including structs not used as shader parameters.
+	godot::Dictionary get_declared_structs() const;
 
 	godot::Error _compile_programs(godot::TypedArray<godot::Ref<SlangShaderProgram>>& out_programs, const godot::Ref<ShaderTypeLayoutShape>& global_params_shape, const godot::PackedStringArray& additional_entry_points = godot::PackedStringArray{});
 	godot::Ref<SlangShaderFile> compile_shader(const godot::PackedStringArray& additional_entry_points);
