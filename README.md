@@ -12,6 +12,7 @@ This project is a work-in-progress to support [Slang](https://shader-slang.org/)
 * First-class support for compositor effects.
 * Supports most major Slang features, including modules.
 * Supports most `.glsl` and `.hlsl` shaders in addition to `.slang`.
+* Support for runtime compilation
 
 ## Usage
 
