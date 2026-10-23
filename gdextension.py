@@ -12,6 +12,7 @@ this script to get a `.gdextension` describing exactly what the matrix produced.
 import os
 import sys
 
+
 LIBNAME = "shader-slang"
 
 # platform -> (SHLIBPREFIX, SHLIBSUFFIX), matching what godot-cpp's platform tools set on
