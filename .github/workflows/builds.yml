@@ -1,4 +1,4 @@
-name: Build GDExtension
+name: Build GDExtension Editor
 on:
   workflow_call:
   push:
@@ -6,100 +6,6 @@ on:
   merge_group:
 
 jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        # A build is made for every possible combination of parameters
-        # You can add or remove entries from the arrays of each parameter to customize which builds you want to run
-        # See https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/running-variations-of-jobs-in-a-workflow
-        target:
-          [
-            { platform: linux, arch: x86_64, os: ubuntu-22.04 },
-            { platform: linux, arch: x86_32, os: ubuntu-22.04 },
-            { platform: windows, arch: x86_64, os: windows-latest },
-            { platform: windows, arch: x86_32, os: windows-latest },
-            { platform: windows, arch: arm64, os: windows-latest },
-            { platform: macos, arch: universal, os: macos-latest },
-            { platform: android, arch: x86_64, os: ubuntu-22.04 },
-            { platform: android, arch: x86_32, os: ubuntu-22.04 },
-            { platform: android, arch: arm64, os: ubuntu-22.04 },
-            { platform: android, arch: arm32, os: ubuntu-22.04 },
-            { platform: ios, arch: arm64, os: macos-latest },
-            { platform: web, arch: wasm32, os: ubuntu-22.04 },
-          ]
-        target-type: [template_debug, template_release]
-        float-precision: [single]
-        godot-api-version: [4.5]
-
-    runs-on: ${{ matrix.target.os }}
-    steps:
-      # Clone this repository
-      - name: Checkout
-        uses: actions/checkout@v7
-        with:
-          submodules: true
-
-      # Lint
-      #- name: Setup clang-format
-      #  shell: bash
-      #  run: |
-      #    python -m pip install clang-format
-      #- name: Run clang-format
-      #  shell: bash
-      #  run: |
-      #    clang-format src/** --dry-run --Werror
-
-      # Add linux x86_32 toolchain
-      - name: Install multilib support
-        if: ${{ matrix.target.platform == 'linux' && matrix.target.arch == 'x86_32' }}
-        run: |
-          sudo apt-get update && sudo apt-get install -y gcc-multilib g++-multilib
-
-      # Setup dependencies
-      - name: Setup godot-cpp
-        uses: ./godot-cpp/.github/actions/setup-godot-cpp
-        with:
-          platform: ${{ matrix.target.platform }}
-          em-version: 3.1.62
-
-      # Build GDExtension (with caches)
-
-      - name: Restore .scons_cache
-        uses: ./godot-cpp/.github/actions/godot-cache-restore
-        with:
-          scons-cache: ${{ github.workspace }}/.scons-cache/
-          cache-name: ${{ matrix.target.platform }}_${{ matrix.target.arch }}_${{ matrix.float-precision }}_${{ matrix.target-type }}_${{ matrix.godot-api-version }}
-
-      - name: Build GDExtension Debug Build
-        shell: sh
-        env:
-          SCONS_CACHE: ${{ github.workspace }}/.scons-cache/
-        run: |
-          scons target=${{ matrix.target-type }} platform=${{ matrix.target.platform }} arch=${{ matrix.target.arch }} precision=${{ matrix.float-precision }} api_version=${{ matrix.godot-api-version }}
-
-      - name: Save .scons_cache
-        uses: ./godot-cpp/.github/actions/godot-cache-save
-        with:
-          scons-cache: ${{ github.workspace }}/.scons-cache/
-          cache-name: ${{ matrix.target.platform }}_${{ matrix.target.arch }}_${{ matrix.float-precision }}_${{ matrix.target-type }}_${{ matrix.godot-api-version }}
-
-      # Clean up compilation files
-      - name: Windows - Delete compilation files
-        if: ${{ matrix.target.platform == 'windows' }}
-        shell: pwsh
-        run: |
-          Remove-Item addons/shader-slang/bin/windows-${{ matrix.target.arch }}/* -Include *.exp,*.lib,*.pdb,*.exp,*.ilk -Force
-
-      # Upload the build
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: godot-slang-${{ matrix.target.platform }}-${{ matrix.target.arch }}-${{ matrix.float-precision }}-${{ matrix.target-type }}
-          path: |
-            ${{ github.workspace }}/dummy-file-to-keep-directory-structure.txt
-            ${{ github.workspace }}/addons
-
   build-editor:
     strategy:
       fail-fast: false
@@ -117,23 +23,19 @@ jobs:
 
     runs-on: ${{ matrix.target.os }}
     steps:
-      # Clone this repository
+      # Clone this repository with full depth for Slang version tags
       - name: Checkout
         uses: actions/checkout@v7
         with:
           submodules: recursive
+          fetch-depth: 0
 
-      # Lint
-      #- name: Setup clang-format
-      #  shell: bash
-      #  run: |
-      #    python -m pip install clang-format
-      #- name: Run clang-format
-      #  shell: bash
-      #  run: |
-      #    clang-format src/** --dry-run --Werror
+      # Setup MSVC for Windows Editor builds (Required for CMake/Slang)
+      - name: Setup MSVC Developer Command Prompt
+        if: ${{ matrix.target.platform == 'windows' }}
+        uses: ilammy/msvc-dev-cmd@v1
 
-      # Add linux x86_32 toolchain
+      # Add linux x86_32 toolchain (kept just in case, though not in matrix)
       - name: Install multilib support
         if: ${{ matrix.target.platform == 'linux' && matrix.target.arch == 'x86_32' }}
         run: |
@@ -146,12 +48,7 @@ jobs:
           platform: ${{ matrix.target.platform }}
           em-version: 3.1.62
 
-      - name: Fetch Slang tags
-        run: git fetch --tags
-        working-directory: slang
-
       # Build GDExtension (with caches)
-
       - name: Restore .scons_cache
         uses: ./godot-cpp/.github/actions/godot-cache-restore
         with:
@@ -187,17 +84,13 @@ jobs:
             ${{ github.workspace }}/dummy-file-to-keep-directory-structure.txt
             ${{ github.workspace }}/addons
 
-  # Merges all the build artifacts into a single godot-slang artifact, and regenerates the
-  # .gdextension so that it declares every library the matrix built (each individual build
-  # only declares its own).
   merge:
     runs-on: ubuntu-22.04
-    needs: [build, build-editor]
+    needs: [build-editor] # <--- Fixed: Removed reference to the deleted 'build' job
     permissions:
       contents: read
-      actions: write # to delete the per-build artifacts once they're merged
+      actions: write
     steps:
-      # Checkout must come first; it cleans the workspace.
       - name: Checkout
         uses: actions/checkout@v7
 
